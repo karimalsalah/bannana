@@ -1,0 +1,218 @@
+:root {
+  --void: #0a0008;
+  --cyan: #00ffff;
+  --toxic: #ffd700;
+  --ash: #9fb4b8;
+  --danger: #ff3b30;
+  --glass: rgba(10, 16, 18, 0.55);
+  --edge: rgba(0, 255, 255, 0.28);
+  --mono: "SFMono-Regular", "JetBrains Mono", "Consolas", ui-monospace, monospace;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html,
+body,
+#root {
+  margin: 0;
+  height: 100%;
+  background: var(--void);
+  color: #e8f6f7;
+  font-family: var(--mono);
+  overflow: hidden;
+}
+
+canvas#stage {
+  position: fixed;
+  inset: 0;
+  width: 100vw;
+  height: 100vh;
+  display: block;
+  touch-action: none;
+}
+
+/* ── Intro: the promo plays first ── */
+.intro {
+  position: fixed;
+  inset: 0;
+  z-index: 50;
+  background: #000;
+  display: grid;
+  place-items: center;
+}
+
+.intro video {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  opacity: 0.96;
+}
+
+.intro__enter {
+  position: absolute;
+  bottom: 9%;
+  padding: 0.9rem 2.2rem;
+  letter-spacing: 0.35em;
+  font-size: 0.85rem;
+  color: var(--void);
+  background: var(--cyan);
+  border: none;
+  cursor: pointer;
+  text-transform: uppercase;
+  box-shadow: 0 0 32px var(--edge);
+  animation: throb 1.6s ease-in-out infinite;
+}
+
+@keyframes throb {
+  50% {
+    box-shadow: 0 0 56px var(--cyan);
+  }
+}
+
+/* ── Terminal HUD ── */
+.bp-hud {
+  position: fixed;
+  top: 0;
+  left: 0;
+  z-index: 20;
+  padding: 1.1rem 1.3rem;
+  font-size: 0.78rem;
+  line-height: 1.5;
+  text-shadow: 0 0 10px rgba(0, 255, 255, 0.4);
+  pointer-events: none;
+  max-width: min(440px, 80vw);
+}
+
+.bp-hud__top {
+  display: flex;
+  justify-content: space-between;
+  gap: 1.5rem;
+  letter-spacing: 0.18em;
+  border-bottom: 1px solid var(--edge);
+  padding-bottom: 0.4rem;
+}
+
+.bp-hud__mark {
+  color: var(--cyan);
+}
+
+.bp-hud__status {
+  color: var(--ash);
+}
+
+.bp-hud__status[data-danger="true"] {
+  color: var(--danger);
+  animation: blink 0.7s steps(2) infinite;
+}
+
+@keyframes blink {
+  50% {
+    opacity: 0.35;
+  }
+}
+
+.bp-hud__line {
+  margin: 0.7rem 0;
+  color: #cfeef0;
+  min-height: 2.6em;
+}
+
+.bp-hud__readout,
+.bp-hud__log {
+  margin: 0;
+  font-size: 0.72rem;
+  color: var(--ash);
+  white-space: pre;
+}
+
+.bp-hud__readout {
+  color: var(--cyan);
+  opacity: 0.85;
+}
+
+.bp-hud__log {
+  margin-top: 0.6rem;
+  opacity: 0.4;
+}
+
+/* ── Brutalist glass wallet panel — "inject computational mass" ── */
+.mass {
+  position: fixed;
+  right: 1.3rem;
+  bottom: 1.3rem;
+  z-index: 30;
+  width: min(340px, 86vw);
+  padding: 1.2rem 1.3rem;
+  background: var(--glass);
+  border: 1px solid var(--edge);
+  backdrop-filter: blur(14px) saturate(1.2);
+  clip-path: polygon(0 0, 100% 0, 100% 86%, 92% 100%, 0 100%);
+}
+
+.mass__title {
+  margin: 0 0 0.2rem;
+  font-size: 0.9rem;
+  letter-spacing: 0.16em;
+  color: var(--cyan);
+}
+
+.mass__sub {
+  margin: 0 0 1rem;
+  font-size: 0.72rem;
+  color: var(--ash);
+}
+
+.mass button {
+  width: 100%;
+  padding: 0.85rem 1rem;
+  font-family: var(--mono);
+  font-size: 0.82rem;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--void);
+  background: var(--cyan);
+  border: none;
+  cursor: pointer;
+  transition: filter 0.15s ease, transform 0.1s ease;
+}
+
+.mass button:hover {
+  filter: brightness(1.1);
+}
+
+.mass button:active {
+  transform: translateY(1px);
+}
+
+.mass button:disabled {
+  background: #1c2a2c;
+  color: var(--ash);
+  cursor: progress;
+}
+
+.mass button.feed {
+  background: var(--toxic);
+}
+
+.mass__addr {
+  margin-top: 0.8rem;
+  font-size: 0.68rem;
+  color: var(--ash);
+  word-break: break-all;
+}
+
+.mass__err {
+  margin-top: 0.6rem;
+  font-size: 0.7rem;
+  color: var(--danger);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.001ms !important;
+  }
+}

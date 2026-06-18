@@ -1,0 +1,35 @@
+# Dependencies
+node_modules/
+**/node_modules
+.pnp
+.pnp.js
+
+# Build output
+dist/
+dist-ssr/
+*.local
+
+# Bun / package managers
+.bun
+
+# Logs
+*.log
+npm-debug.log*
+bun-debug.log*
+
+# Env / secrets
+.env
+.env.*
+!.env.example
+
+# Editor / OS
+.vscode/*
+!.vscode/extensions.json
+.idea/
+.DS_Store
+Thumbs.db
+desktop.ini
+*.swp
+
+# Drizzle local artifacts
+drizzle/.cache
