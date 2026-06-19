@@ -54,7 +54,17 @@ Governed by `docs/GODMODE_PRIME_CHARTER_v3.md`.
 - [x] `bun run build` (vite) — **✓ 7.4s**, dist/ produced (rapier wasm + three webgpu bundled)
 - [x] Backend boot smoke — `/api/health` ok, Swagger `/docs` 200, Better Auth constructs
 - [x] `bun test` — **4 pass / 0 fail** (lifecycle FSM)
-- [ ] Push fork + enable CI/CD + Pages + PR to upstream  ← next
+- [x] Committed `e0bf825`; pushed to fork `karimalsalah/bannana` (branch + main)
+- [x] PR #1 → `usephedm/bannana`: https://github.com/usephedm/bannana/pull/1
+- [x] CI + Pages workflows wired; Actions enabled on fork
+- [x] `dist/` snapshot pushed to `gh-pages` (serves with no runner once billing clears)
+
+### BLOCKER (account-level, V-action — not a code defect)
+The `karimalsalah` GitHub account is **billing-locked** → every GitHub-side build is
+refused ("account is locked due to a billing issue"): CI, the Pages workflow, AND the
+classic gh-pages build all fail at start. Unlock = resolve GitHub billing on that account.
+Alternatively, merging PR #1 runs everything on `usephedm`'s own Actions (verify that
+account's billing). Until then, the live proof is local: `bun run build` → `bun run preview`.
 
 ### Gate verdict (docs/gates/protocol-singularity.md): **PASS** (verified by execution, not self-graded)
 
