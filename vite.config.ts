@@ -2,12 +2,19 @@ import { defineConfig } from "vite";
 import react from "@vitejs/plugin-react";
 import wasm from "vite-plugin-wasm";
 import topLevelAwait from "vite-plugin-top-level-await";
+import { nodePolyfills } from "vite-plugin-node-polyfills";
 
 // Served from https://usephedm.github.io/bannana/ in production (GitHub Pages),
 // and from "/" in local dev.
 export default defineConfig(({ command }) => ({
   base: command === "build" ? "/bannana/" : "/",
-  plugins: [react(), wasm(), topLevelAwait()],
+  plugins: [
+    // banana-wallet-sdk (and other web3 deps) reference Node globals in the browser.
+    nodePolyfills({ globals: { Buffer: true, global: true, process: true } }),
+    react(),
+    wasm(),
+    topLevelAwait(),
+  ],
   build: {
     // WebGPU + Rapier WASM + top-level await need a modern target.
     target: "esnext",

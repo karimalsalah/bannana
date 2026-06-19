@@ -16,6 +16,7 @@
   },
   "scripts": {
     "dev": "vite",
+    "dev:all": "node scripts/dev-all.mjs",
     "build": "vite build",
     "preview": "vite preview --port 4173",
     "server": "bun run src/backend/server.ts",
@@ -48,6 +49,7 @@
     "rollup": "^4.62.0",
     "typescript": "6.0.3",
     "vite": "8.0.16",
+    "vite-plugin-node-polyfills": "^0.28.0",
     "vite-plugin-top-level-await": "^1.4.4",
     "vite-plugin-wasm": "^3.3.0"
   }

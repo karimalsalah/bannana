@@ -14,7 +14,8 @@ import { Elysia, t } from "elysia";
 import { cors } from "@elysiajs/cors";
 import { swagger } from "@elysiajs/swagger";
 import { auth } from "./auth.js";
-import { stageForRipeness, STAGE_HUD } from "../protocol/lifecycle.js";
+import { STAGE_HUD } from "../protocol/lifecycle.js";
+import { recordStake, snapshot } from "./store.js";
 
 export const app = new Elysia()
   .use(cors())
@@ -26,19 +27,14 @@ export const app = new Elysia()
     ts: new Date().toISOString(),
   }))
 
-  // ── Lifecycle stub ───────────────────────────────────────────────────────────
+  // ── Lifecycle ────────────────────────────────────────────────────────────────
   .get(
     "/api/lifecycle/:bananaId",
     ({ params }) => {
-      // Typed stub — real implementation queries bananaNft + lifecycleEvent tables
-      const ripeness = 0;
-      const stage = stageForRipeness(ripeness);
-      const hud = STAGE_HUD[stage];
+      const s = snapshot(params.bananaId);
       return {
-        bananaId: params.bananaId,
-        stage,
-        ripeness,
-        hud,
+        ...s,
+        hud: STAGE_HUD[s.stage],
       };
     },
     {
@@ -50,18 +46,14 @@ export const app = new Elysia()
   .post(
     "/api/stake",
     ({ body }) => {
-      // Typed stub — real implementation inserts into peelStake + recalculates ripeness
-      return {
-        ok: true,
-        bananaId: body.bananaId,
-        amountWei: body.amountWei,
-        userOpHash: body.userOpHash,
-      };
+      return recordStake(body.bananaId, body.amountWei, body.userOpHash);
     },
     {
       body: t.Object({
         bananaId: t.String(),
-        amountWei: t.String(),
+        // Must be a non-negative decimal integer string (matches uint256 range).
+        // Rejects hex, negative, floats, or empty strings before they reach BigInt().
+        amountWei: t.String({ pattern: "^[0-9]+$" }),
         userOpHash: t.String(),
       }),
     },

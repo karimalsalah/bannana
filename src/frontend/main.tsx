@@ -1,9 +1,11 @@
 /// <reference types="vite/client" />
-import { StrictMode, useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { createRoot } from "react-dom/client";
 import { createScene, type SceneHandle } from "./scene";
 import { createHud } from "./hud";
 import { injectStructuredData } from "./geo";
+import { health, postStake } from "./api";
+import { probeWebGPU, renderWebGPUNotice } from "./webgpu";
 import {
   connectPasskeyWallet,
   isWebAuthnAvailable,
@@ -23,27 +25,42 @@ function App() {
   const [peelWei, setPeelWei] = useState(0n);
   const [busy, setBusy] = useState(false);
   const [stage, setStage] = useState<Stage>("DORMANT");
+  const [gpuOk, setGpuOk] = useState<boolean | null>(null);
+  const [backendOk, setBackendOk] = useState<boolean | null>(null);
   const [error, setError] = useState<string | null>(null);
 
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
   const hudMount = useRef<HTMLDivElement | null>(null);
   const sceneRef = useRef<SceneHandle | null>(null);
-  const fedRef = useRef(0);
+  const hudRef = useRef<ReturnType<typeof createHud> | null>(null);
+  const ripenessRef = useRef(0);
+  const peelWeiRef = useRef(0n);
 
+  // Probe the backend once; surface its reachability in the panel.
   useEffect(() => {
     injectStructuredData();
+    health()
+      .then(() => setBackendOk(true))
+      .catch(() => setBackendOk(false));
   }, []);
 
-  // Boot the WebGPU scene once we enter the void.
+  // Enter the void: render the WebGPU scene, or a graceful notice if unsupported.
   useEffect(() => {
-    if (phase !== "live" || !canvasRef.current) return;
+    if (phase !== "live") return;
     let raf = 0;
     let disposed = false;
+    let notice: HTMLElement | null = null;
     const hud = createHud();
+    hudRef.current = hud;
     hudMount.current?.appendChild(hud.root);
 
-    createScene(canvasRef.current)
-      .then((handle) => {
+    (async () => {
+      const ok = await probeWebGPU();
+      if (disposed) return;
+      setGpuOk(ok);
+
+      if (ok && canvasRef.current) {
+        const handle = await createScene(canvasRef.current);
         if (disposed) {
           handle.dispose();
           return;
@@ -54,13 +71,21 @@ function App() {
           hud.setStage(s);
           hud.log(STAGE_HUD[s].status);
         });
-        const tick = () => {
-          hud.setReadout(rip(handle), 0, fedWei(fedRef.current));
-          raf = requestAnimationFrame(tick);
-        };
-        tick();
-      })
-      .catch((e: unknown) => setError(errMsg(e)));
+      } else {
+        document.body.classList.add("webgpu-fallback");
+        notice = renderWebGPUNotice(
+          document.body,
+          "The spatial scene needs WebGPU. The protocol loop is still live — connect a passkey and feed the code; the lifecycle is computed server-side.",
+        );
+        hud.log("WEBGPU UNAVAILABLE — loop live");
+      }
+
+      const tick = () => {
+        hud.setReadout(ripenessRef.current, 0, peelWeiRef.current);
+        raf = requestAnimationFrame(tick);
+      };
+      tick();
+    })().catch((e: unknown) => setError(errMsg(e)));
 
     return () => {
       disposed = true;
@@ -68,6 +93,9 @@ function App() {
       sceneRef.current?.dispose();
       sceneRef.current = null;
       hud.dispose();
+      hudRef.current = null;
+      notice?.remove();
+      document.body.classList.remove("webgpu-fallback");
     };
   }, [phase]);
 
@@ -89,36 +117,37 @@ function App() {
     }
   }, []);
 
+  // Feed the code: web3 stake (client) -> backend recordStake (authoritative) -> render.
   const feed = useCallback(async () => {
     if (!session) return;
     setError(null);
     setBusy(true);
     try {
       const receipt = await stakePeel(session, PEEL);
-      const next = peelWei + BigInt(receipt.amountWei);
-      setPeelWei(next);
-      fedRef.current += 1;
-      const target = Math.min(1, fedRef.current * 0.16);
-      sceneRef.current?.setRipeness(target);
+      const snap = await postStake({
+        bananaId: session.address,
+        amountWei: receipt.amountWei,
+        userOpHash: receipt.userOpHash,
+      });
+      ripenessRef.current = snap.ripeness;
+      peelWeiRef.current = BigInt(snap.peelStakedWei);
+      setPeelWei(peelWeiRef.current);
+      setStage(snap.stage as Stage);
+      sceneRef.current?.setRipeness(snap.ripeness);
       sceneRef.current?.addCharge(0.4);
-      if (target >= 1) sceneRef.current?.pulse();
+      if (snap.ripeness >= 1) sceneRef.current?.pulse();
+      hudRef.current?.log(`STAKE → ${snap.stage} @ ${(snap.ripeness * 100).toFixed(0)}%`);
     } catch (e) {
       setError(errMsg(e));
     } finally {
       setBusy(false);
     }
-  }, [session, peelWei]);
+  }, [session]);
 
   if (phase === "intro") {
     return (
       <div className="intro">
-        <video
-          src={VIDEO}
-          autoPlay
-          muted
-          playsInline
-          onEnded={() => setPhase("live")}
-        />
+        <video src={VIDEO} autoPlay muted playsInline onEnded={() => setPhase("live")} />
         <button className="intro__enter" onClick={() => setPhase("live")}>
           Enter the void
         </button>
@@ -136,7 +165,7 @@ function App() {
         <h2 className="mass__title">◢ Inject computational mass</h2>
         <p className="mass__sub">
           {session
-            ? "Stage: " + stage + ". Feed the code to force the next evolution."
+            ? `Stage: ${stage}. Feed the code to force the next evolution.`
             : "The interface demands an immediate injection. Connect a biometric signer."}
         </p>
 
@@ -157,26 +186,18 @@ function App() {
             referral reward: {referralUnlocked ? "UNLOCKED" : "locked (sub-threshold)"}
           </p>
         )}
+
+        <p className="mass__status">
+          backend {statusDot(backendOk)} · webgpu {statusDot(gpuOk)}
+        </p>
         {error && <p className="mass__err">⚠ {error}</p>}
       </aside>
     </>
   );
 }
 
-// The scene exposes stage but not raw ripeness; approximate the bar from stage floors.
-function rip(_handle: SceneHandle): number {
-  return STAGE_FLOOR_BY_STAGE[_handle.stage()];
-}
-const STAGE_FLOOR_BY_STAGE: Record<Stage, number> = {
-  DORMANT: 0.05,
-  CHARGING: 0.25,
-  MUTATING: 0.55,
-  CRITICAL: 0.85,
-  ASCENDED: 1,
-};
-
-function fedWei(stakes: number): bigint {
-  return BigInt(stakes) * PEEL;
+function statusDot(ok: boolean | null): string {
+  return ok === null ? "…" : ok ? "● live" : "○ down";
 }
 
 function errMsg(e: unknown): string {
@@ -185,9 +206,5 @@ function errMsg(e: unknown): string {
 
 const root = document.getElementById("root");
 if (root) {
-  createRoot(root).render(
-    <StrictMode>
-      <App />
-    </StrictMode>,
-  );
+  createRoot(root).render(<App />);
 }

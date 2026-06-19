@@ -209,6 +209,20 @@ canvas#stage {
   color: var(--danger);
 }
 
+.mass__status {
+  margin-top: 0.8rem;
+  font-size: 0.66rem;
+  letter-spacing: 0.12em;
+  color: var(--ash);
+  text-transform: uppercase;
+}
+
+/* When WebGPU is unavailable, keep the HUD + wallet panel above the notice. */
+.webgpu-fallback .mass,
+.webgpu-fallback .bp-hud {
+  z-index: 10000;
+}
+
 @media (prefers-reduced-motion: reduce) {
   *,
   *::before,

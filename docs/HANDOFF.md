@@ -59,6 +59,21 @@ Governed by `docs/GODMODE_PRIME_CHARTER_v3.md`.
 - [x] CI + Pages workflows wired; Actions enabled on fork
 - [x] `dist/` snapshot pushed to `gh-pages` (serves with no runner once billing clears)
 
+### LOCAL DEPLOY — LIVE & PROVEN (2026-06-19)
+End-to-end wired and verified in a browser on localhost:
+- `bun run dev:all` → backend (Elysia/Bun) :3000 + frontend (Vite) :5173, proxied.
+- **Server-authoritative loop**: web3 stake → `POST /api/stake` → in-memory store recomputes
+  ripeness (BigInt) → stage climbs DORMANT→CHARGING→MUTATING→CRITICAL→ASCENDED. Verified
+  via API: 6×1 PEEL walked 0.167→1.000; dedup by userOpHash holds; negative amount → 422.
+- **Frontend**: React mounts, promo intro plays, WebGPU scene renders live (neon banana +
+  Gommage particles + bloom), HUD + wallet panel, status `BACKEND ● LIVE · WEBGPU ● LIVE`,
+  zero console errors.
+- Fix applied: `@rize-labs/banana-wallet-sdk` referenced Node `Buffer` → added
+  `vite-plugin-node-polyfills` (Buffer/global/process). WebGPU guard (`src/frontend/webgpu.ts`)
+  falls back gracefully where `navigator.gpu` is absent.
+- New files this phase: `src/backend/store.ts`, `src/frontend/api.ts`, `src/frontend/webgpu.ts`,
+  `scripts/dev-all.mjs`; `main.tsx` rewired to the server-authoritative loop.
+
 ### BLOCKER (account-level, V-action — not a code defect)
 The `karimalsalah` GitHub account is **billing-locked** → every GitHub-side build is
 refused ("account is locked due to a billing issue"): CI, the Pages workflow, AND the
