@@ -115,3 +115,73 @@ export function recordStake(
 export function snapshot(bananaId: string): LifecycleSnapshot {
   return getOrCreate(bananaId);
 }
+
+// ── Leaderboard / Stats / Events ─────────────────────────────────────────────
+
+export interface LeaderRow {
+  bananaId: string;
+  peelStakedWei: string;
+  stage: string;
+  stakeCount: number;
+  ripeness: number;
+}
+
+export interface ProtocolStats {
+  totalBananas: number;
+  totalPeelWei: string;
+  ascended: number;
+  eventCount: number;
+}
+
+export interface EventRow {
+  bananaId: string;
+  toStage: string;
+  ripenessAt: number;
+  ts: string;
+}
+
+export function leaderboard(limit?: number): LeaderRow[] {
+  const rows: LeaderRow[] = [];
+  for (const [bananaId, entry] of store) {
+    rows.push({
+      bananaId,
+      peelStakedWei: entry.totalWei.toString(),
+      stage: entry.stage,
+      stakeCount: entry.stakeCount,
+      ripeness: entry.ripeness,
+    });
+  }
+  rows.sort((a, b) => {
+    const diff = BigInt(b.peelStakedWei) - BigInt(a.peelStakedWei);
+    return diff > 0n ? 1 : diff < 0n ? -1 : 0;
+  });
+  return limit !== undefined ? rows.slice(0, limit) : rows;
+}
+
+export function stats(): ProtocolStats {
+  let totalPeelWei = 0n;
+  let ascended = 0;
+  let eventCount = 0;
+  for (const entry of store.values()) {
+    totalPeelWei += entry.totalWei;
+    if (entry.stage === "ASCENDED") ascended += 1;
+    eventCount += entry.events.length;
+  }
+  return {
+    totalBananas: store.size,
+    totalPeelWei: totalPeelWei.toString(),
+    ascended,
+    eventCount,
+  };
+}
+
+export function recentEvents(limit?: number): EventRow[] {
+  const rows: EventRow[] = [];
+  for (const [bananaId, entry] of store) {
+    for (const ev of entry.events) {
+      rows.push({ bananaId, toStage: ev.toStage, ripenessAt: ev.ripenessAt, ts: ev.ts });
+    }
+  }
+  rows.sort((a, b) => (a.ts < b.ts ? 1 : a.ts > b.ts ? -1 : 0));
+  return limit !== undefined ? rows.slice(0, limit) : rows;
+}

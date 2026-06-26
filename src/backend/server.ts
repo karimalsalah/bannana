@@ -15,7 +15,7 @@ import { cors } from "@elysiajs/cors";
 import { swagger } from "@elysiajs/swagger";
 import { auth } from "./auth.js";
 import { STAGE_HUD } from "../protocol/lifecycle.js";
-import { recordStake, snapshot } from "./store.js";
+import { recordStake, snapshot, leaderboard, stats, recentEvents } from "./store.js";
 
 export const app = new Elysia()
   .use(cors())
@@ -56,6 +56,27 @@ export const app = new Elysia()
         amountWei: t.String({ pattern: "^[0-9]+$" }),
         userOpHash: t.String(),
       }),
+    },
+  )
+
+  // ── Leaderboard ─────────────────────────────────────────────────────────────
+  .get(
+    "/api/leaderboard",
+    ({ query }) => leaderboard(query.limit !== undefined ? Number(query.limit) : undefined),
+    {
+      query: t.Object({ limit: t.Optional(t.String({ pattern: "^[0-9]+$" })) }),
+    },
+  )
+
+  // ── Stats ────────────────────────────────────────────────────────────────────
+  .get("/api/stats", () => stats())
+
+  // ── Events ──────────────────────────────────────────────────────────────────
+  .get(
+    "/api/events",
+    ({ query }) => recentEvents(query.limit !== undefined ? Number(query.limit) : undefined),
+    {
+      query: t.Object({ limit: t.Optional(t.String({ pattern: "^[0-9]+$" })) }),
     },
   )
 
