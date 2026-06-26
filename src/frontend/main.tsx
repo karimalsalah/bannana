@@ -2,10 +2,8 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { createRoot } from "react-dom/client";
 import { createScene, type SceneHandle } from "./scene";
-import { createHud } from "./hud";
-import { injectStructuredData } from "./geo";
-import { health, postStake } from "./api";
 import { probeWebGPU, renderWebGPUNotice } from "./webgpu";
+import { health, postStake } from "./api";
 import {
   connectPasskeyWallet,
   isWebAuthnAvailable,
@@ -14,45 +12,55 @@ import {
 } from "../web3/account";
 import { DEFAULT_TERMS, isReferralUnlocked } from "../web3/referral";
 import { STAGE_HUD, type Stage } from "../protocol/lifecycle";
-import "./styles.css";
+import Intro from "./components/Intro";
+import Dossier from "./components/Dossier";
+import ProtocolPanel from "./components/ProtocolPanel";
+import Observatory from "./components/Observatory";
+import Lore from "./components/Lore";
+import "./design/tokens.css";
 
 const PEEL = 10n ** 18n; // 1 $PEEL in wei
 const VIDEO = `${import.meta.env.BASE_URL}the-banana-protocol.mp4`;
+const REPO = "https://github.com/karimalsalah/bannana";
+type View = "live" | "observatory" | "lore";
 
 function App() {
   const [phase, setPhase] = useState<"intro" | "live">("intro");
+  const [view, setView] = useState<View>("live");
   const [session, setSession] = useState<WalletSession | null>(null);
   const [peelWei, setPeelWei] = useState(0n);
-  const [busy, setBusy] = useState(false);
+  const [ripeness, setRipeness] = useState(0);
+  const [charge, setCharge] = useState(0);
   const [stage, setStage] = useState<Stage>("DORMANT");
+  const [log, setLog] = useState<string[]>([]);
+  const [busy, setBusy] = useState(false);
   const [gpuOk, setGpuOk] = useState<boolean | null>(null);
   const [backendOk, setBackendOk] = useState<boolean | null>(null);
   const [error, setError] = useState<string | null>(null);
 
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
-  const hudMount = useRef<HTMLDivElement | null>(null);
   const sceneRef = useRef<SceneHandle | null>(null);
-  const hudRef = useRef<ReturnType<typeof createHud> | null>(null);
-  const ripenessRef = useRef(0);
-  const peelWeiRef = useRef(0n);
 
-  // Probe the backend once; surface its reachability in the panel.
+  const pushLog = useCallback((line: string) => {
+    setLog((l) => [...l.slice(-6), line]);
+  }, []);
+
   useEffect(() => {
-    injectStructuredData();
     health()
       .then(() => setBackendOk(true))
       .catch(() => setBackendOk(false));
   }, []);
 
-  // Enter the void: render the WebGPU scene, or a graceful notice if unsupported.
   useEffect(() => {
     if (phase !== "live") return;
-    let raf = 0;
     let disposed = false;
     let notice: HTMLElement | null = null;
-    const hud = createHud();
-    hudRef.current = hud;
-    hudMount.current?.appendChild(hud.root);
+    let poll: ReturnType<typeof setInterval> | null = null;
+    const onOrient = (e: DeviceOrientationEvent) => {
+      const s = sceneRef.current;
+      if (!s) return;
+      s.setTilt(((e.gamma ?? 0) / 90) * 0.5, ((e.beta ?? 0) / 90) * 0.3);
+    };
 
     (async () => {
       const ok = await probeWebGPU();
@@ -68,41 +76,41 @@ function App() {
         sceneRef.current = handle;
         handle.onStage((s) => {
           setStage(s);
-          hud.setStage(s);
-          hud.log(STAGE_HUD[s].status);
+          pushLog(STAGE_HUD[s].status);
         });
+        window.addEventListener("deviceorientation", onOrient);
       } else {
         document.body.classList.add("webgpu-fallback");
         notice = renderWebGPUNotice(
           document.body,
-          "The spatial scene needs WebGPU. The protocol loop is still live — connect a passkey and feed the code; the lifecycle is computed server-side.",
+          "The spatial scene needs WebGPU. The protocol loop is still live — connect a passkey and feed the code.",
         );
-        hud.log("WEBGPU UNAVAILABLE — loop live");
       }
 
-      const tick = () => {
-        hud.setReadout(ripenessRef.current, 0, peelWeiRef.current);
-        raf = requestAnimationFrame(tick);
-      };
-      tick();
+      poll = setInterval(() => {
+        const s = sceneRef.current;
+        if (s) {
+          setRipeness(s.getRipeness());
+          setCharge(s.getCharge());
+        }
+      }, 80);
     })().catch((e: unknown) => setError(errMsg(e)));
 
     return () => {
       disposed = true;
-      cancelAnimationFrame(raf);
+      if (poll) clearInterval(poll);
+      window.removeEventListener("deviceorientation", onOrient);
       sceneRef.current?.dispose();
       sceneRef.current = null;
-      hud.dispose();
-      hudRef.current = null;
       notice?.remove();
       document.body.classList.remove("webgpu-fallback");
     };
-  }, [phase]);
+  }, [phase, pushLog]);
 
   const connect = useCallback(async () => {
     setError(null);
     if (!isWebAuthnAvailable()) {
-      setError("WebAuthn unavailable. Use a browser with passkey support.");
+      setError("WebAuthn unavailable — use a passkey-capable browser.");
       return;
     }
     setBusy(true);
@@ -110,14 +118,14 @@ function App() {
       const s = await connectPasskeyWallet();
       setSession(s);
       sceneRef.current?.addCharge(0.35);
+      pushLog("BIOMETRIC SIGNER LINKED");
     } catch (e) {
       setError(errMsg(e));
     } finally {
       setBusy(false);
     }
-  }, []);
+  }, [pushLog]);
 
-  // Feed the code: web3 stake (client) -> backend recordStake (authoritative) -> render.
   const feed = useCallback(async () => {
     if (!session) return;
     setError(null);
@@ -129,76 +137,86 @@ function App() {
         amountWei: receipt.amountWei,
         userOpHash: receipt.userOpHash,
       });
-      ripenessRef.current = snap.ripeness;
-      peelWeiRef.current = BigInt(snap.peelStakedWei);
-      setPeelWei(peelWeiRef.current);
+      setPeelWei(BigInt(snap.peelStakedWei));
       setStage(snap.stage as Stage);
       sceneRef.current?.setRipeness(snap.ripeness);
       sceneRef.current?.addCharge(0.4);
       if (snap.ripeness >= 1) sceneRef.current?.pulse();
-      hudRef.current?.log(`STAKE → ${snap.stage} @ ${(snap.ripeness * 100).toFixed(0)}%`);
+      pushLog(`STAKE → ${snap.stage} @ ${(snap.ripeness * 100).toFixed(0)}%`);
     } catch (e) {
       setError(errMsg(e));
     } finally {
       setBusy(false);
     }
-  }, [session]);
+  }, [session, pushLog]);
 
   if (phase === "intro") {
-    return (
-      <div className="intro">
-        <video src={VIDEO} autoPlay muted playsInline onEnded={() => setPhase("live")} />
-        <button className="intro__enter" onClick={() => setPhase("live")}>
-          Enter the void
-        </button>
-      </div>
-    );
+    return <Intro videoSrc={VIDEO} onEnter={() => setPhase("live")} />;
   }
 
-  const referralUnlocked = isReferralUnlocked(peelWei, DEFAULT_TERMS);
-
   return (
-    <>
-      <canvas id="stage" ref={canvasRef} />
-      <div ref={hudMount} />
-      <aside className="mass">
-        <h2 className="mass__title">◢ Inject computational mass</h2>
-        <p className="mass__sub">
-          {session
-            ? `Stage: ${stage}. Feed the code to force the next evolution.`
-            : "The interface demands an immediate injection. Connect a biometric signer."}
-        </p>
+    <div data-stage={stage}>
+      <canvas id="stage" ref={canvasRef} style={CANVAS_STYLE} />
+      <div className="atmos" />
+      <div className="grain" />
 
-        {!session ? (
-          <button onClick={connect} disabled={busy}>
-            {busy ? "Authorizing…" : "Connect passkey"}
-          </button>
-        ) : (
-          <button className="feed" onClick={feed} disabled={busy}>
-            {busy ? "Submitting userOp…" : "Feed the code — stake $PEEL"}
-          </button>
-        )}
+      <nav className="nav">
+        <a className="nav__brand" href={REPO} target="_blank" rel="noreferrer">
+          ◢ BANANA<span className="dim">/</span>PROTOCOL
+        </a>
+        <div className="nav__views">
+          {(["live", "observatory", "lore"] as View[]).map((v) => (
+            <button
+              key={v}
+              className={`nav__tab${view === v ? " is-active" : ""}`}
+              onClick={() => setView(v)}
+            >
+              {v === "live" ? "DOSSIER" : v === "observatory" ? "OBSERVATORY" : "FIELD NOTES"}
+            </button>
+          ))}
+          <a className="nav__fork" href={REPO} target="_blank" rel="noreferrer">
+            ★ FORK / CONTRIBUTE
+          </a>
+        </div>
+      </nav>
 
-        {session && (
-          <p className="mass__addr">
-            ◇ {session.address.slice(0, 10)}…{session.address.slice(-6)}
-            <br />
-            referral reward: {referralUnlocked ? "UNLOCKED" : "locked (sub-threshold)"}
-          </p>
-        )}
+      {view === "live" && (
+        <>
+          <Dossier stage={stage} ripeness={ripeness} charge={charge} peelWei={peelWei} log={log} />
+          <ProtocolPanel
+            session={session}
+            stage={stage}
+            peelWei={peelWei}
+            busy={busy}
+            backendOk={backendOk}
+            gpuOk={gpuOk}
+            referralUnlocked={isReferralUnlocked(peelWei, DEFAULT_TERMS)}
+            error={error}
+            onConnect={connect}
+            onFeed={feed}
+          />
+        </>
+      )}
+      {view === "observatory" && <Observatory active />}
+      {view === "lore" && <Lore />}
 
-        <p className="mass__status">
-          backend {statusDot(backendOk)} · webgpu {statusDot(gpuOk)}
-        </p>
-        {error && <p className="mass__err">⚠ {error}</p>}
-      </aside>
-    </>
+      <footer className="credit">
+        AN AUTONOMOUS EXPERIMENT · BUILT BY CLAUDE · CO-AUTHORED BY{" "}
+        <span style={{ color: "var(--bio)" }}>STEADYWRK</span>
+      </footer>
+    </div>
   );
 }
 
-function statusDot(ok: boolean | null): string {
-  return ok === null ? "…" : ok ? "● live" : "○ down";
-}
+const CANVAS_STYLE: React.CSSProperties = {
+  position: "fixed",
+  inset: 0,
+  width: "100vw",
+  height: "100vh",
+  display: "block",
+  zIndex: 0,
+  touchAction: "none",
+};
 
 function errMsg(e: unknown): string {
   return e instanceof Error ? e.message : String(e);
