@@ -1,0 +1,319 @@
+/* ============================================================================
+   THE BANANA PROTOCOL — Design System  "XENOSPECIMEN DOSSIER"
+   A classified bioluminescent organism under live observation.
+   Dominant void-black + bio-cyan, sharp plasma/toxic accents. No AI slop.
+   ============================================================================ */
+
+:root {
+  /* ── Palette ── */
+  --void: #06070a;
+  --void-2: #0b0e14;
+  --void-3: #11151d;
+  --hair: #1b212c; /* hairline borders */
+  --bio: #2ef2e0; /* primary bioluminescence (cyan) */
+  --bio-dim: #1aa89c;
+  --acid: #b6ff3b; /* unripe */
+  --toxic: #ffc23b; /* ripe amber */
+  --plasma: #ff2d78; /* warning / critical */
+  --ink: #e9f7f8; /* bright text */
+  --ash: #8392a0; /* muted text */
+  --ash-2: #51606e; /* faint text */
+
+  /* ── Type ── */
+  --display: "Chakra Petch", "Arial Narrow", sans-serif;
+  --mono: "IBM Plex Mono", ui-monospace, "Consolas", monospace;
+  --tracking: 0.14em;
+  --tracking-wide: 0.32em;
+
+  /* ── Geometry ── */
+  --clip: polygon(0 0, 100% 0, 100% calc(100% - 14px), calc(100% - 14px) 100%, 0 100%);
+  --clip-l: polygon(14px 0, 100% 0, 100% 100%, 0 100%, 0 14px);
+  --radius: 2px;
+  --gap: clamp(0.8rem, 2vw, 1.4rem);
+
+  /* ── Glass ── */
+  --glass: color-mix(in oklab, var(--void-2) 72%, transparent);
+  --glass-edge: color-mix(in oklab, var(--bio) 26%, transparent);
+
+  /* ── Motion ── */
+  --ease: cubic-bezier(0.22, 1, 0.36, 1);
+  --ease-snap: cubic-bezier(0.5, 1.6, 0.4, 1);
+  --dur: 0.5s;
+
+  --glow-bio: 0 0 12px color-mix(in oklab, var(--bio) 55%, transparent),
+    0 0 28px color-mix(in oklab, var(--bio) 24%, transparent);
+  --glow-plasma: 0 0 12px color-mix(in oklab, var(--plasma) 60%, transparent);
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html,
+body,
+#root {
+  margin: 0;
+  height: 100%;
+  background: var(--void);
+  color: var(--ink);
+  font-family: var(--mono);
+  font-size: 15px;
+  -webkit-font-smoothing: antialiased;
+  overflow: hidden;
+}
+
+body {
+  /* targeting-reticle cursor */
+  cursor:
+    url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='28' height='28' viewBox='0 0 28 28'%3E%3Cg fill='none' stroke='%232ef2e0' stroke-width='1'%3E%3Ccircle cx='14' cy='14' r='8' opacity='.5'/%3E%3Cpath d='M14 2v6M14 20v6M2 14h6M20 14h6'/%3E%3Ccircle cx='14' cy='14' r='1.5' fill='%232ef2e0' stroke='none'/%3E%3C/g%3E%3C/svg%3E")
+      14 14,
+    crosshair;
+}
+
+::selection {
+  background: var(--bio);
+  color: var(--void);
+}
+
+h1,
+h2,
+h3 {
+  font-family: var(--display);
+  font-weight: 700;
+  margin: 0;
+  letter-spacing: var(--tracking);
+}
+
+/* ── Atmosphere: scanlines + grain + vignette overlay ── */
+.atmos {
+  position: fixed;
+  inset: 0;
+  pointer-events: none;
+  z-index: 9000;
+}
+.atmos::before {
+  /* scanlines */
+  content: "";
+  position: absolute;
+  inset: 0;
+  background: repeating-linear-gradient(
+    to bottom,
+    transparent 0 2px,
+    rgba(0, 0, 0, 0.18) 2px 3px
+  );
+  mix-blend-mode: multiply;
+  opacity: 0.5;
+}
+.atmos::after {
+  /* vignette */
+  content: "";
+  position: absolute;
+  inset: 0;
+  background: radial-gradient(120% 90% at 50% 45%, transparent 55%, rgba(0, 0, 0, 0.72));
+}
+.grain {
+  position: fixed;
+  inset: -50%;
+  pointer-events: none;
+  z-index: 9001;
+  opacity: 0.05;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='120' height='120'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.9' numOctaves='2'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
+  animation: grain 0.5s steps(3) infinite;
+}
+@keyframes grain {
+  0% { transform: translate(0, 0); }
+  50% { transform: translate(-4%, 3%); }
+  100% { transform: translate(3%, -2%); }
+}
+
+/* ── Glass panel primitive ── */
+.panel {
+  background: var(--glass);
+  border: 1px solid var(--glass-edge);
+  backdrop-filter: blur(14px) saturate(1.25);
+  clip-path: var(--clip);
+  position: relative;
+}
+.panel::before {
+  /* corner ticks */
+  content: "";
+  position: absolute;
+  top: 6px;
+  left: 6px;
+  width: 8px;
+  height: 8px;
+  border-top: 1px solid var(--bio);
+  border-left: 1px solid var(--bio);
+  opacity: 0.7;
+}
+
+/* ── Labels & data ── */
+.eyebrow {
+  font-family: var(--mono);
+  font-size: 0.64rem;
+  letter-spacing: var(--tracking-wide);
+  text-transform: uppercase;
+  color: var(--bio);
+}
+.dim {
+  color: var(--ash);
+}
+.faint {
+  color: var(--ash-2);
+}
+
+/* ── Button primitive ── */
+.btn {
+  font-family: var(--display);
+  font-weight: 600;
+  font-size: 0.82rem;
+  letter-spacing: var(--tracking);
+  text-transform: uppercase;
+  color: var(--void);
+  background: var(--bio);
+  border: none;
+  padding: 0.85rem 1.4rem;
+  clip-path: var(--clip);
+  cursor: pointer;
+  transition: filter 0.15s, transform 0.1s, box-shadow 0.2s var(--ease);
+  box-shadow: var(--glow-bio);
+}
+.btn:hover {
+  filter: brightness(1.12);
+}
+.btn:active {
+  transform: translateY(1px);
+}
+.btn:disabled {
+  background: var(--void-3);
+  color: var(--ash);
+  box-shadow: none;
+  cursor: progress;
+}
+.btn--ghost {
+  background: transparent;
+  color: var(--bio);
+  border: 1px solid var(--glass-edge);
+  box-shadow: none;
+}
+.btn--toxic {
+  background: var(--toxic);
+}
+.btn--plasma {
+  background: var(--plasma);
+  color: var(--ink);
+}
+
+/* ── Stage accent mapping (data-stage on a root element) ── */
+[data-stage="DORMANT"] { --stage-accent: var(--acid); }
+[data-stage="CHARGING"] { --stage-accent: var(--bio); }
+[data-stage="MUTATING"] { --stage-accent: var(--toxic); }
+[data-stage="CRITICAL"] { --stage-accent: var(--plasma); }
+[data-stage="ASCENDED"] { --stage-accent: #ffffff; }
+
+@keyframes flicker {
+  0%, 100% { opacity: 1; }
+  92% { opacity: 1; }
+  94% { opacity: 0.4; }
+  96% { opacity: 1; }
+}
+@keyframes rise {
+  from { opacity: 0; transform: translateY(12px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+@keyframes blink {
+  50% { opacity: 0.25; }
+}
+
+/* ── Top navigation ── */
+.nav {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  z-index: 60;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  padding: 0.9rem clamp(0.9rem, 3vw, 2rem);
+  background: linear-gradient(to bottom, rgba(6, 7, 10, 0.92), transparent);
+  font-family: var(--display);
+}
+.nav__brand {
+  font-weight: 700;
+  letter-spacing: var(--tracking);
+  color: var(--ink);
+  text-decoration: none;
+  font-size: 0.92rem;
+  text-shadow: var(--glow-bio);
+}
+.nav__views {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  flex-wrap: wrap;
+}
+.nav__tab {
+  font-family: var(--mono);
+  font-size: 0.64rem;
+  letter-spacing: var(--tracking-wide);
+  color: var(--ash);
+  background: transparent;
+  border: 1px solid transparent;
+  padding: 0.45rem 0.7rem;
+  cursor: pointer;
+  transition: color 0.2s, border-color 0.2s;
+}
+.nav__tab:hover {
+  color: var(--ink);
+}
+.nav__tab.is-active {
+  color: var(--bio);
+  border-color: var(--glass-edge);
+  background: color-mix(in oklab, var(--bio) 8%, transparent);
+}
+.nav__fork {
+  font-family: var(--mono);
+  font-size: 0.64rem;
+  letter-spacing: var(--tracking-wide);
+  color: var(--void);
+  background: var(--bio);
+  padding: 0.45rem 0.8rem;
+  text-decoration: none;
+  clip-path: var(--clip);
+  box-shadow: var(--glow-bio);
+}
+
+/* ── Experiment credit ── */
+.credit {
+  position: fixed;
+  bottom: 0.5rem;
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 60;
+  font-family: var(--mono);
+  font-size: 0.56rem;
+  letter-spacing: var(--tracking-wide);
+  color: var(--ash-2);
+  text-transform: uppercase;
+  white-space: nowrap;
+  pointer-events: none;
+}
+
+/* ── WebGPU fallback: keep HUD/panel above the notice ── */
+.webgpu-fallback .mass,
+.webgpu-fallback .nav,
+.webgpu-fallback .dossier {
+  z-index: 10000;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.001ms !important;
+    transition-duration: 0.001ms !important;
+  }
+  .grain { display: none; }
+}
