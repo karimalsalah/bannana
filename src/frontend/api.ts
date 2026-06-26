@@ -39,6 +39,42 @@ export async function postStake(input: {
   });
 }
 
+export interface LeaderRow {
+  bananaId: string;
+  peelStakedWei: string;
+  stage: string;
+  stakeCount: number;
+  ripeness: number;
+}
+
+export interface ProtocolStats {
+  totalBananas: number;
+  totalPeelWei: string;
+  ascended: number;
+  eventCount: number;
+}
+
+export interface EventRow {
+  bananaId: string;
+  toStage: string;
+  ripenessAt: number;
+  ts: string;
+}
+
+export async function getLeaderboard(limit?: number): Promise<LeaderRow[]> {
+  const qs = limit !== undefined ? `?limit=${limit}` : "";
+  return request(`/api/leaderboard${qs}`);
+}
+
+export async function getStats(): Promise<ProtocolStats> {
+  return request("/api/stats");
+}
+
+export async function getEvents(limit?: number): Promise<EventRow[]> {
+  const qs = limit !== undefined ? `?limit=${limit}` : "";
+  return request(`/api/events${qs}`);
+}
+
 export function connectLifecycleWs(onMessage: (data: unknown) => void): WebSocket {
   const protocol = location.protocol === "https:" ? "wss:" : "ws:";
   const ws = new WebSocket(`${protocol}//${location.host}/ws`);
