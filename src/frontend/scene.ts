@@ -13,6 +13,10 @@ export interface SceneHandle {
   /** Detonation spike. */
   pulse(): void;
   stage(): Stage;
+  getRipeness(): number;
+  getCharge(): number;
+  /** Environmental tilt from device orientation (radians-ish, small). */
+  setTilt(x: number, y: number): void;
   onStage(cb: (stage: Stage) => void): void;
   dispose(): void;
 }
@@ -98,6 +102,9 @@ export async function createScene(canvas: HTMLCanvasElement): Promise<SceneHandl
   let pixelRatio = Math.min(window.devicePixelRatio, 1.6);
   renderer.setPixelRatio(pixelRatio);
 
+  let tiltX = 0;
+  let tiltY = 0;
+
   const clock = new THREE.Clock();
   renderer.setAnimationLoop(() => {
     const dt = Math.min(clock.getDelta(), 0.05);
@@ -108,8 +115,8 @@ export async function createScene(canvas: HTMLCanvasElement): Promise<SceneHandl
     uniforms.charge.value = charge;
     gommage.progress.value = Math.max(charge, smoothstep01(0.2, 0.6, ripeness));
 
-    banana.rotation.y += (pointer.x * 0.6 - banana.rotation.y) * dt * 2;
-    banana.rotation.x += (-pointer.y * 0.4 - banana.rotation.x) * dt * 2;
+    banana.rotation.y += (pointer.x * 0.6 + tiltX - banana.rotation.y) * dt * 2;
+    banana.rotation.x += (-pointer.y * 0.4 + tiltY - banana.rotation.x) * dt * 2;
     banana.rotation.z += dt * 0.12;
 
     if (physics) {
@@ -143,6 +150,12 @@ export async function createScene(canvas: HTMLCanvasElement): Promise<SceneHandl
       physics?.kick();
     },
     stage: () => current,
+    getRipeness: () => ripeness,
+    getCharge: () => charge,
+    setTilt: (x, y) => {
+      tiltX = x;
+      tiltY = y;
+    },
     onStage: (cb) => {
       stageCb = cb;
     },
